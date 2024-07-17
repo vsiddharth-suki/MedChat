@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MedChat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="icon" type="image/png" href="../static/favicon.png"/>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: Verdana;
+            background-color: #dadca9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1000px;
+            align-items: center;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            background-color: rgb(121, 184, 227);
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            padding: 5px;
+            margin-top: 20px;
+        }
+        .message {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 10px;
+            font-size: 18px;
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #d1ffaf;
+        }
+        .medchat-message {
+            align-self: flex-start;
+            background-color: #f1e3e3;
+        }
+        h1 {
+            text-align: center;
+            font-size: 30px;
+            color: #000000;
+        }
+        .medchat-title {
+            color: red;
+        }
+        .input-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            margin-top: 5px;
+            width: 100%;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            margin: 10px 5px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 18px;
+            font-family: Verdana;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .icon-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            margin: 5px;
+            width: 60px;
+            cursor: pointer;
+            border: none;
+            border-radius: 50%;
+            font-size: 25px;
+            background-color: #0db75f;
+            color: white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+        }
+        .icon-button:hover {
+            background-color: #045e10;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1><span class="medchat-title">Med</span>Chat</h1>
+    <div class="container">
+        <div class="chat-container" id="chat-container"></div>
+        <div class="input-container">
+            <input type="text" id="message-input" placeholder="Type your message here...">
+            <button class="icon-button" onclick="recordVoice()" title="Record voice"><i class="fas fa-microphone"></i></button>
+            <button class="icon-button" onclick="sendMessage()" title="Send message"><i class="fas fa-paper-plane"></i></button>
+            <button class="icon-button" onclick="uploadFile()" title="Upload note"><i class="fas fa-plus"></i></button>
+            <input type="file" id="file-input" accept="application/json" style="display: none;" onchange="handleFileUpload(event)">
+        </div>
+    </div>
+
+    <script>
+        // function called on page reload
+        document.addEventListener('DOMContentLoaded', function() {
+            // get the route for greeting function and send a post request
+            fetch('/greet', {
+                method: 'POST'
+            })
+            .then(response => response.json())      // get the greeting message from medchat
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);      // generate alert in case of error
+                } else {
+                    displayMessage(data.response, 'medchat-message');   // display the greeting message
+                }
+            })
+            .catch(error => console.error('Error:', error));    // show the error in console
+
+            const messageInput = document.getElementById('message-input');  // get the message input to apply event listener on it
+            // if enter key is pressed, the message is sent
+            messageInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    sendMessage();  // send message if enter is pressed
+                }
+            });
+        });
+
+        // function to send post request to 'record' route
+        function recordVoice() {
+            fetch('/record', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);  // generate alert if error occurs
+                } else {
+                    document.getElementById('message-input').value = data.query;    // display the query spoken in the message input as text
+                }
+            })
+            .catch(error => console.error('Error:', error));    // show error message in console
+        }
+
+        // function to send the query spoken
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value;     // get the message present in the input
+
+            if (message.trim() === '') return;      // if message is empty, return
+
+            displayMessage(message, 'user-message');    // user's message is displayed on the webpage
+            // send post request to medchat route to get response of query
+            fetch('/medchat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'  // to send json data
+                },
+                body: JSON.stringify({ message: message })  // convert the string of message to json for sending in json format
+            })
+            .then(response => response.json())  // fetch the medchat response and convert it to json
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);      // generate alert if data.error is not null
+                } else {
+                    displayMessage(data.response, 'medchat-message');   // display the medchat response to a query
+                }
+            })
+            .catch(error => console.error('Error:', error));    // display error in the console
+
+            messageInput.value = '';    // reset the message input value
+        }
+
+        // function to show a message
+        function displayMessage(message, className) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message ' + className;
+            messageElement.innerText = message;
+            chatContainer.appendChild(messageElement);
+        }
+
+        // function gets called on clicking the upload icon
+        function uploadFile() {
+            document.getElementById('file-input').click();
+        }
+
+        // function operates in the process of file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];     // fetch the file
+            if (!file) return;  // if file is null (no file present), return
+
+            const reader = new FileReader();    // create a file reader object
+            reader.onload = function(e) {
+                try {
+                    const jsonContent = JSON.parse(e.target.result);
+                    // call the 'upload' route with post request
+                    fetch('/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'  // accept json files
+                        },
+                        body: JSON.stringify(jsonContent)
+                    })
+                    .then(response => response.json())      // fetch the response and convert to json
+                    .then(data => {
+                        if (data.error) {
+                            alert('Error: ' + data.error);      // if data.error is not null, there is an error
+                        } else {
+                            alert('File uploaded successfully!');   // send success message
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));    // display error in console
+                } catch (err) {
+                    alert('Invalid JSON file.');    // generate alert message in case of upload failure
+                }
+            };
+            reader.readAsText(file);    // read the file in text format
+        }
+    </script>
+</body>
+</html>
